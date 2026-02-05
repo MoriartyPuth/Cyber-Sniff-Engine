@@ -109,6 +109,12 @@ Frontend (HTML/JS):
 
 - Visualize: The enriched data is sent to the dashboard, turning a line of code into a neon-colored security alert.
 
-# 
+## ⚠️ Legal & Ethical Disclaimer
+
+This tool, CyberSniff Engine, is developed strictly for educational purposes and authorized security auditing. Unauthorized interception of network traffic on networks you do not own or have explicit permission to monitor is a violation of privacy laws (such as the Computer Fraud and Abuse Act or GDPR). The developers are not responsible for any misuse or damage caused by this software. Always ensure you are operating within a "Sandboxed" or authorized environment.
+
+
+
+
 
 
