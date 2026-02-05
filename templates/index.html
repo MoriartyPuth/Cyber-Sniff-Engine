@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CyberSniff Engine | Security Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --neon: #00f2ff; --warn: #ff007b; --bg: #0b0e14; --card: #161b22; --flood: #ffaa00; }
+        body { background: var(--bg); color: #c9d1d9; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
+        .controls { text-align: center; margin: 20px 0; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 20px; margin-bottom: 20px; }
+        .card { background: var(--card); border: 1px solid #30363d; border-radius: 12px; padding: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        h2 { color: var(--neon); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-top: 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { text-align: left; color: #8b949e; padding: 10px; border-bottom: 1px solid #30363d; }
+        td { padding: 10px; border-bottom: 1px solid #21262d; vertical-align: middle; }
+        .btn { padding: 8px 20px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; text-transform: uppercase; margin: 0 5px; }
+        .active-btn { background: var(--neon); color: black; box-shadow: 0 0 10px var(--neon); }
+        .stop-btn { background: var(--warn); color: white; box-shadow: 0 0 10px var(--warn); }
+        .alert-red { background: rgba(255, 0, 123, 0.1); border-left: 4px solid var(--warn); }
+        .flood-row { background: rgba(255, 170, 0, 0.1) !important; border-left: 4px solid var(--flood); }
+        .tag { padding: 2px 6px; border-radius: 4px; font-size: 10px; color: white; margin-left: 5px; }
+        .tag-ext { background: var(--warn); }
+        .tag-flood { background: var(--flood); color: black; }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center; letter-spacing: 5px; text-shadow: 0 0 10px var(--neon);">NETWORK INTRUSION MONITOR</h1>
+    
+    <div class="controls">
+        <button id="toggleBtn" class="btn active-btn" onclick="toggle()">System Active</button>
+        <button class="btn" style="background: #333; color: white;" onclick="clearData()">Clear Session</button>
+    </div>
+
+    <div class="grid">
+        <div class="card"><h2>Traffic Load (PPS)</h2><canvas id="lineChart"></canvas></div>
+        <div class="card"><h2>Protocols</h2><canvas id="pieChart"></canvas></div>
+        <div class="card"><h2>Top Talkers</h2><div id="leaderboard"></div></div>
+    </div>
+
+    <div class="card">
+        <h2>Live Traffic Inspection</h2>
+        <table>
+            <thead><tr><th>Source Device</th><th>Service</th><th>Origin</th><th>Size</th></tr></thead>
+            <tbody id="feed"></tbody>
+        </table>
+    </div>
+
+    <script>
+        const socket = io();
+        const lineCtx = document.getElementById('lineChart').getContext('2d');
+        const pieCtx = document.getElementById('pieChart').getContext('2d');
+
+        const lineChart = new Chart(lineCtx, {
+            type: 'line',
+            data: { labels: Array(20).fill(''), datasets: [{ data: Array(20).fill(0), borderColor: '#00f2ff', tension: 0.4, fill: true, backgroundColor: 'rgba(0, 242, 255, 0.05)' }]},
+            options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { beginAtZero: true } } }
+        });
+
+        const pieChart = new Chart(pieCtx, {
+            type: 'doughnut',
+            data: { labels: ['TCP', 'UDP', 'Other'], datasets: [{ data: [0,0,0], backgroundColor: ['#00f2ff', '#ff007b', '#8b949e'], borderWidth: 0 }]},
+            options: { plugins: { legend: { position: 'bottom', labels: { color: '#fff', boxWidth: 10 } } } }
+        });
+
+        function toggle() {
+            fetch('/toggle').then(r => r.json()).then(data => {
+                const b = document.getElementById('toggleBtn');
+                b.innerText = data.status === "Running" ? "System Active" : "System Paused";
+                b.className = data.status === "Running" ? "btn active-btn" : "btn stop-btn";
+            });
+        }
+
+        function clearData() {
+            if(confirm("Reset all logs?")) {
+                fetch('/clear').then(() => {
+                    document.getElementById('feed').innerHTML = "";
+                    lineChart.data.datasets[0].data = Array(20).fill(0);
+                    lineChart.update();
+                });
+            }
+        }
+
+        socket.on('stats_update', (data) => {
+            lineChart.data.datasets[0].data.push(data.pps);
+            lineChart.data.datasets[0].data.shift();
+            lineChart.update();
+            pieChart.data.datasets[0].data = [data.protocols.TCP||0, data.protocols.UDP||0, data.protocols.Other||0];
+            pieChart.update();
+            document.getElementById('leaderboard').innerHTML = data.top_ips.map(ip => `
+                <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #222; font-size:11px">
+                    <span>${ip[0]}</span><span style="color:var(--neon)">${ip[1]} pkts</span>
+                </div>`).join('');
+        });
+
+        socket.on('new_packet', (data) => {
+            const row = document.getElementById('feed').insertRow(0);
+            if(data.external) row.className = "alert-red";
+            if(data.flood) row.className = "flood-row";
+            
+            row.innerHTML = `
+                <td>
+                    <div style="font-weight:bold">${data.src}${data.external ? '<span class="tag tag-ext">EXTERNAL</span>' : ''}${data.flood ? '<span class="tag tag-flood">FLOOD</span>' : ''}</div>
+                    <div style="font-size:10px; color:#8b949e">${data.vendor}</div>
+                </td>
+                <td style="color:var(--neon); font-weight:bold">${data.service}</td>
+                <td style="font-size:11px">${data.loc}</td>
+                <td>${data.len}B</td>
+            `;
+            if (document.getElementById('feed').rows.length > 15) document.getElementById('feed').deleteRow(15);
+        });
+    </script>
+</body>
+</html>
