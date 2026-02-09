@@ -30,11 +30,11 @@ CyberSniff is a real-time, web-based Network Intrusion Detection System (NIDS) a
 
 1. Clone the repository: git clone https://github.com/MoriartyPuth/Cyber-Sniff-Engine
 ## 📄 Project Documentation
-1. Project Overview
+### 1. Project Overview
 
 CyberSniff Engine is a specialized network monitoring tool designed to provide real-time visibility into local area network (LAN) traffic. Unlike standard text-based sniffers, CyberSniff translates raw binary data into a human-readable, visual dashboard. It acts as a lightweight Intrusion Detection System (IDS) by identifying external threats, device manufacturers, and network congestion (flooding).
 
-2. Objectives
+### 2. Objectives
 
 - Packet Inspection: Capture and parse live IP, TCP, and UDP packets.
 
@@ -44,7 +44,7 @@ CyberSniff Engine is a specialized network monitoring tool designed to provide r
 
 - Behavioral Analysis: Monitor "Packets Per Second" (PPS) to detect network flooding or potential DDoS attacks.
 
-3. Key Technical Features
+### 3. Key Technical Features
 
 <div class="card" style="margin-top: 30px;">
     <div style="overflow-x: auto;">
@@ -85,7 +85,7 @@ CyberSniff Engine is a specialized network monitoring tool designed to provide r
     </div>
 </div>
 
-4. System Architecture
+### 4. System Architecture
 
 Backend (Python): * A background thread runs the sniffer.
 
@@ -99,7 +99,7 @@ Frontend (HTML/JS):
 
 - WebSocket listener dynamically updates the traffic table as packets arrive.
 
-5. Methodology (How it works)
+### 5. Methodology (How it works)
 
 - Capture: The engine hooks into the network interface card (NIC) using the Npcap driver.
 
@@ -108,6 +108,63 @@ Frontend (HTML/JS):
 - Enrich: The IP is checked against private IP ranges. If public, a Geo-IP lookup is performed. The MAC is checked against the OUI (Organizationally Unique Identifier) database.
 
 - Visualize: The enriched data is sent to the dashboard, turning a line of code into a neon-colored security alert.
+
+### 6. Logical Data Flow
+
+```mermaid
+graph TD
+    %% Network Layer
+    A[Network Interface Card] -- Raw Packets --> B{Scapy Sniffer}
+    
+    %% Processing Layer
+    B -- IP/MAC Layers --> C[Packet Dissector]
+    C --> D[Geo-IP Lookup API]
+    C --> E[OUI Vendor Database]
+    C --> F[Flood Detection Logic]
+    
+    %% Backend Storage & Transit
+    D & E & F --> G[Data Aggregator]
+    G -- "Write (A)" --> H[(network_log.csv)]
+    G -- "Broadcast" --> I[Flask-SocketIO Server]
+    
+    %% Frontend Presentation
+    I -- "Live Push" --> J[Neon Dashboard UI]
+    J --> K[Chart.js - PPS Load]
+    J --> L[Table - Live Feed]
+    J --> M[Doughnut - Protocol Mix]
+
+    %% Styles
+    style A fill:#1a1f26,stroke:#00f2ff,stroke-width:2px
+    style B fill:#1a1f26,stroke:#ff007b,stroke-width:2px
+    style J fill:#0b0e14,stroke:#00f2ff,stroke-width:4px
+```
+### 7. Network Topology
+
+```mermaid
+graph LR
+    subgraph Internet
+        S1[External Server]
+        S2[Foreign ISP]
+    end
+
+    subgraph Home_Network
+        R[Router / Gateway]
+        PC[CyberSniff PC]
+        TV[Smart TV]
+        PH[Mobile Phone]
+    end
+
+    S1 <--> R
+    S2 <--> R
+    R <--> PC
+    R -. Captured Traffic .-> PC
+    TV --- R
+    PH --- R
+
+    %% Descriptions
+    classDef monitor fill:#00f2ff,color:#000;
+    class PC monitor;
+```
 
 ## ⚠️ Legal & Ethical Disclaimer
 
